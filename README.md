@@ -23,7 +23,7 @@ PixelShield stores only scrambled pixel noise at the image URL. The scraper down
 
 ## Quick Start
 
-**Step 1 — Encrypt your image** (open `demo.html` → "Encrypt Your Image" tab):
+**Step 1 — Encrypt your image** (open `demo.html`, go to the Encrypt tab):
 
 Upload your photo, choose a secret seed number, download the encrypted PNG.
 
@@ -54,11 +54,11 @@ Open `demo.html` in any browser — no server required.
 
 | Tab | What it does |
 |-----|-------------|
-| **▶ Live Demo** | Upload any image, see original / encrypted / decrypted side-by-side with timing stats |
-| **🔒 Encrypt** | Creator workflow — upload → encrypt → download the PNG to host |
-| **🔓 Decrypt** | Upload an encrypted PNG + enter seed → recover the original |
-| **⟨/⟩ Add to Website** | Copy-paste embed snippets and integration guide |
-| **❓ How It Works** | Algorithm explainer with V10 vs V14 comparison |
+| Live Demo | Upload any image, see original / encrypted / decrypted side-by-side with timing stats |
+| Encrypt | Creator workflow — upload, encrypt, download the PNG to host |
+| Decrypt | Upload an encrypted PNG and enter the seed to recover the original |
+| Add to Website | Copy-paste embed snippets and integration guide |
+| How It Works | Algorithm explainer with version comparison |
 
 ---
 
@@ -70,7 +70,7 @@ pixel-shield/
 ├── demo.html           # Interactive demo (all features, no server needed)
 ├── prototype.html      # Original R&D prototype
 ├── docs/
-│   ├── algorithm.md    # Algorithm deep-dive: V10 → V14, test results
+│   ├── algorithm.md    # Algorithm deep-dive: V10 through V14, test results
 │   ├── api.md          # Full JavaScript API reference
 │   └── security.md     # Threat model and limitations
 ├── CHANGELOG.md        # Version history
@@ -115,12 +115,12 @@ for each pixel {
 
 | Metric | V10 (original) | V14 (current) |
 |--------|---------------|---------------|
-| Round-trip error rate | 54–58% ❌ | **0%** ✅ |
-| PSNR (image quality) | 16–25 dB (unusable) ❌ | **∞ dB (perfect)** ✅ |
-| Encrypted entropy | ~6 bits | **7.999 / 8.0 bits** ✅ |
-| Spatial scrambling | ~2× | **85×** ✅ |
-| Wrong-seed false positive | — | **0.3% (matches chance)** ✅ |
-| Handles R=0 pixels | No (black dot bug) ❌ | **Yes** ✅ |
+| Round-trip error rate | 54–58% | **0%** |
+| PSNR (image quality) | 16–25 dB (unusable) | **infinite dB (perfect)** |
+| Encrypted entropy | ~6 bits | **7.999 / 8.0 bits** |
+| Spatial scrambling | ~2x | **85x** |
+| Wrong-seed false positive | — | **0.3% (matches chance)** |
+| Handles R=0 pixels | No (black dot bug) | **Yes** |
 
 For full algorithm documentation see [`docs/algorithm.md`](docs/algorithm.md).
 
@@ -135,10 +135,10 @@ PixelShield.decryptAll();
 // Decrypt a specific image element
 await PixelShield.decryptImage(imgElement, seed);
 
-// Encrypt an image → returns a Blob (save as PNG)
+// Encrypt an image, returns a Blob (save as PNG)
 const blob = await PixelShield.encrypt(imgElement, seed);
 
-// Encrypt → data URL (useful for previewing)
+// Encrypt to data URL (useful for previewing)
 const dataURL = await PixelShield.encryptToDataURL(imgElement, seed);
 
 // Set a default seed for all images on the page
@@ -157,25 +157,29 @@ Full API reference: [`docs/api.md`](docs/api.md)
 
 | Limitation | Detail |
 |-----------|--------|
-| **Social media** | Doesn't protect images uploaded to Instagram, X, TikTok — those platforms re-host on their own CDN and never run your JS |
-| **Headless browsers** | A sophisticated scraper running full headless Chrome would execute the script. Mitigation: obfuscate `pixel-shield.js` and serve the seed from a backend |
-| **CORS** | Encrypted image must be same-origin OR served with `Access-Control-Allow-Origin: *` |
-| **JPEG re-saves** | Lossy compression breaks pixel-perfect encryption — always use PNG |
-| **No server required** | Encryption is 100% client-side. Keep seeds out of public repos for maximum security |
+| Social media | Doesn't protect images uploaded to Instagram, X, TikTok — those platforms re-host on their own CDN and never run your JS |
+| Headless browsers | A sophisticated scraper running full headless Chrome would execute the script. Mitigation: obfuscate `pixel-shield.js` and serve the seed from a backend |
+| CORS | Encrypted image must be same-origin OR served with `Access-Control-Allow-Origin: *` |
+| JPEG re-saves | Lossy compression breaks pixel-perfect encryption — always use PNG |
+| Seed security | Keep seeds out of public repos. The seed is the only secret in the system. |
 
 Full threat model: [`docs/security.md`](docs/security.md)
 
 ---
 
-## Comparison with Existing Approaches
+## Why PixelShield is different
 
-| Approach | What it does | Why it's not enough |
-|----------|-------------|---------------------|
-| `robots.txt` | Asks crawlers not to index | Freely ignored |
-| Visible watermark | Marks ownership | Easy to crop or inpaint |
-| Metadata / IPTC | Embeds author info | Stripped on re-save |
-| Glaze / Nightshade | Adversarial perturbation confuses AI training | Permanent — no reversibility for the viewer |
-| **PixelShield** | Pixel encryption reversible only in browser | Hard technical barrier; scraper gets noise |
+Most approaches to protecting images from AI scrapers either mark images after the fact or try to confuse AI models during training. PixelShield takes a fundamentally different approach: the original image pixels never exist at any URL the scraper can reach.
+
+| Approach | Protects the original pixels | Viewer sees full quality | Implementation |
+|----------|------------------------------|--------------------------|----------------|
+| `robots.txt` | No — freely ignored | Yes | None |
+| Visible watermark | No — only marks ownership | Degraded | Low |
+| Metadata / IPTC | No — stripped on download | Yes | Low |
+| Glaze / Nightshade | No — poisons training signal only | Altered permanently | Medium |
+| PixelShield | **Yes — scraper gets noise** | **Yes — full quality** | **Low** |
+
+The key distinction: Glaze and Nightshade are defensive measures against training — they subtly alter pixel values to confuse AI models. This alteration is permanent and visible under magnification. PixelShield is an access control measure — the original pixels are never served to anything that can't execute JavaScript, so there is nothing for a scraper to train on. The viewer always sees the unmodified original.
 
 ---
 
@@ -189,9 +193,9 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full version history.
 
 ---
 
-## Authors
+## Author
 
-**Hudson Horwood** and **Graham Barclay**
+**Hudson Horwood**, with support from Graham Barclay
 Supervised by Ms. Poon
 Grades 2–4 R&D Project, 2025–2026
 

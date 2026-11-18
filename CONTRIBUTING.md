@@ -1,6 +1,6 @@
 # Contributing to PixelShield
 
-PixelShield is a student R&D project. Contributions are welcome in the form of bug reports, suggestions, and pull requests.
+PixelShield is a student R&D project by Hudson Horwood, with support from Graham Barclay. Contributions are welcome in the form of bug reports, suggestions, and pull requests.
 
 ---
 
