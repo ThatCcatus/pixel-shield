@@ -1,212 +1,206 @@
-# Corrupting Images for AI Scraper Defense
+# PixelShield
 
-> **Pixel-level encryption to protect user images from automated AI data collection**
+**Pixel-level image encryption that defeats AI scrapers — invisible to humans, unusable by bots.**
 
-[![Status](https://img.shields.io/badge/status-R%26D%20Prototype-gold)]()
-[![Version](https://img.shields.io/badge/encryption-v14-navy)]()
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![Algorithm](https://img.shields.io/badge/algorithm-V14%20XOR%2BPRNG-gold)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
+[![Status](https://img.shields.io/badge/status-R%26D%20Prototype-orange)]()
 
 ---
 
-## What This Is
+## The Problem
 
-This project asks one question: **can we store an image as meaningless noise on a server, while a browser silently reconstructs it perfectly for a human viewer — so that any AI scraper downloading the raw file gets unusable data?**
+AI image scrapers work in two steps:
+1. A web crawler follows `<img>` tags and collects image URLs
+2. An HTTP downloader sends `GET` requests and saves the raw bytes
 
-The answer, based on our working prototype, is **yes**.
+**The scraper never opens a browser. It never executes JavaScript.**
 
-A web crawler downloading our image URL receives pixel values that are mathematically scrambled. It has no JavaScript runtime, no decryption key, and no way to know the image is encrypted. When a neural network trains on the scrambled data, the pixel values are statistically meaningless. Meanwhile, a human visitor's browser runs a small JavaScript function on page load, reverses the transformation channel-by-channel, and renders the original image — in under a second, invisibly.
+PixelShield stores only scrambled pixel noise at the image URL. The scraper downloads that noise, trains on it, and gets nothing useful. Meanwhile, your visitor's browser silently runs a 3KB script, reverses the scramble, and shows the original — in under a second, invisibly.
 
-**This is not watermarking. It is not metadata tagging. It is a hard technical defence that works regardless of whether a scraper is operating legally or illegally.**
+---
+
+## Quick Start
+
+**Step 1 — Encrypt your image** (open `demo.html` → "Encrypt Your Image" tab):
+
+Upload your photo, choose a secret seed number, download the encrypted PNG.
+
+**Step 2 — Host the encrypted PNG** on your website instead of the original.
+
+**Step 3 — Add two things to your HTML:**
+
+```html
+<!-- Your image, now pointing to the encrypted file -->
+<img
+  src="encrypted-photo.png"
+  data-pixel-shield
+  data-seed="YOUR_SECRET_SEED"
+  alt="My artwork"
+>
+
+<!-- Add once per page, just before </body> -->
+<script src="pixel-shield.js"></script>
+```
+
+That's it. Visitors see the original. Scrapers download noise.
+
+---
+
+## Demo
+
+Open `demo.html` in any browser — no server required.
+
+| Tab | What it does |
+|-----|-------------|
+| **▶ Live Demo** | Upload any image, see original / encrypted / decrypted side-by-side with timing stats |
+| **🔒 Encrypt** | Creator workflow — upload → encrypt → download the PNG to host |
+| **🔓 Decrypt** | Upload an encrypted PNG + enter seed → recover the original |
+| **⟨/⟩ Add to Website** | Copy-paste embed snippets and integration guide |
+| **❓ How It Works** | Algorithm explainer with V10 vs V14 comparison |
+
+---
+
+## Files
+
+```
+pixel-shield/
+├── pixel-shield.js     # The library — add to any website
+├── demo.html           # Interactive demo (all features, no server needed)
+├── prototype.html      # Original R&D prototype
+├── docs/
+│   ├── algorithm.md    # Algorithm deep-dive: V10 → V14, test results
+│   ├── api.md          # Full JavaScript API reference
+│   └── security.md     # Threat model and limitations
+├── CHANGELOG.md        # Version history
+├── CONTRIBUTING.md     # How to contribute
+└── LICENSE             # MIT
+```
 
 ---
 
 ## How It Works
 
-### The Scraper Gap
-
-AI image scrapers work in two stages:
-1. A **web crawler** follows links, parses HTML `<img>` tags, and collects image URLs
-2. An **HTTP downloader** sends `GET` requests to those URLs and saves the raw file bytes
-
-The scraper never opens a browser. It never executes JavaScript. It sees only the bytes at the URL.
-
-Our system stores only the **encrypted pixel data** at the image URL. The decryption key is embedded invisibly inside the image itself (in the alpha channel) and only the browser's JavaScript knows to look for it.
-
-### The Encryption Algorithm (Version 14)
+### The V14 Algorithm
 
 ```javascript
-// Seeded PRNG (xorshift32) — unique per-pixel key from a secret seed number
+// Seeded PRNG — unique key for every pixel, derived from a secret seed
 function seededPRNG(seed) {
   let s = seed >>> 0;
   return () => { s ^= s<<13; s ^= s>>17; s ^= s<<5; return (s>>>0) & 0xFF; };
 }
 
-// ENCRYPTION — run once, store result on your server
-function encrypt(pixels, seed) {
-  const rng = seededPRNG(seed);
-  for (let i = 0; i < pixels.length; i += 4) {
-    const kr = rng(), kg = rng(), kb = rng(); rng(); // 4 keys per pixel
-    const [r, g, b] = [pixels[i], pixels[i+1], pixels[i+2]];
-    pixels[i]   = g ^ kr;  // R slot ← original G XOR key
-    pixels[i+1] = b ^ kg;  // G slot ← original B XOR key
-    pixels[i+2] = r ^ kb;  // B slot ← original R XOR key
-    pixels[i+3] = 255;     // alpha always opaque
-  }
+// ENCRYPT — run once, store result on server
+for each pixel {
+  const [kr, kg, kb] = [rng(), rng(), rng()];  rng(); // 4 values per pixel
+  encrypted.R = original.G ^ kr;   // swap channels + XOR unique key
+  encrypted.G = original.B ^ kg;
+  encrypted.B = original.R ^ kb;
+  encrypted.A = 255;                // always opaque
 }
 
-// DECRYPTION — run in browser with same seed, perfectly reverses encryption
-function decrypt(pixels, seed) {
-  const rng = seededPRNG(seed);
-  for (let i = 0; i < pixels.length; i += 4) {
-    const kr = rng(), kg = rng(), kb = rng(); rng();
-    const origG = pixels[i]   ^ kr;  // un-XOR each slot
-    const origB = pixels[i+1] ^ kg;
-    const origR = pixels[i+2] ^ kb;
-    pixels[i] = origR; pixels[i+1] = origG; pixels[i+2] = origB; pixels[i+3] = 255;
-  }
+// DECRYPT — same seed = perfect recovery, different seed = garbage
+for each pixel {
+  const [kr, kg, kb] = [rng(), rng(), rng()];  rng();
+  decrypted.R = encrypted.B ^ kb;
+  decrypted.G = encrypted.R ^ kr;
+  decrypted.B = encrypted.G ^ kg;
 }
 ```
 
-**Why this is better than V10:** XOR is exactly reversible (no floating-point precision loss). Channel scrambling (R→B, G→R, B→G) adds structural disruption beyond the XOR noise. The seeded PRNG means every pixel gets a different key — statistical analysis of the ciphertext is infeasible without the seed.
+**Why XOR?** Unlike the original V10 formula (which used floating-point division chains), XOR is an exact bitwise operation. `a XOR key XOR key = a`, always, with zero precision loss. Combined with channel scrambling and a seeded PRNG, V14 achieves mathematically perfect decryption.
 
-### The Canvas API
+### Benchmark Results
 
-The entire system is built on the [HTML Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API):
+| Metric | V10 (original) | V14 (current) |
+|--------|---------------|---------------|
+| Round-trip error rate | 54–58% ❌ | **0%** ✅ |
+| PSNR (image quality) | 16–25 dB (unusable) ❌ | **∞ dB (perfect)** ✅ |
+| Encrypted entropy | ~6 bits | **7.999 / 8.0 bits** ✅ |
+| Spatial scrambling | ~2× | **85×** ✅ |
+| Wrong-seed false positive | — | **0.3% (matches chance)** ✅ |
+| Handles R=0 pixels | No (black dot bug) ❌ | **Yes** ✅ |
 
-- `ctx.drawImage(img, 0, 0)` — draws the image onto an invisible canvas
-- `ctx.getImageData(0, 0, w, h)` — returns every pixel as a flat `Uint8ClampedArray`: `[R, G, B, A, R, G, B, A, ...]`
-- We modify the array with our formula
-- `ctx.putImageData(data, 0, 0)` — writes it back
-- `ctx.toDataURL()` or `ctx.toBlob()` — exports as a downloadable file
-
----
-
-## Project Structure
-
-```
-/
-├── demo.html               # Full interactive demo + creator + embed guide (start here)
-├── pixel-shield.js         # Embeddable widget — add to any website
-├── prototype.html          # Standalone browser prototype (encrypt/decrypt tool)
-├── docs/
-│   ├── paper.pdf           # Full R&D paper (13 sections + Works Cited)
-│   ├── code-overview.pdf   # Technical code walkthrough
-│   ├── graphics.pdf        # Figures and callout boxes for the paper
-│   └── roadmap.pdf         # 5-phase development roadmap
-└── README.md
-```
+For full algorithm documentation see [`docs/algorithm.md`](docs/algorithm.md).
 
 ---
 
-## Try the Demo
+## JavaScript API
 
-Open `demo.html` in any modern browser. No server required — everything runs client-side.
+```javascript
+// Auto-decrypt all [data-pixel-shield] images on page load (happens automatically)
+PixelShield.decryptAll();
 
-**Tab 1 — Live Demo:** Upload any image, choose a seed, see the original / encrypted / decrypted side-by-side. Download either version.
+// Decrypt a specific image element
+await PixelShield.decryptImage(imgElement, seed);
 
-**Tab 2 — Encrypt Your Image:** Upload your photo, generate an encrypted PNG to host on your server. Get the embed snippet ready to paste.
+// Encrypt an image → returns a Blob (save as PNG)
+const blob = await PixelShield.encrypt(imgElement, seed);
 
-**Tab 3 — Add to Website:** Copy the two lines of HTML needed to protect images on any website.
+// Encrypt → data URL (useful for previewing)
+const dataURL = await PixelShield.encryptToDataURL(imgElement, seed);
 
-**Tab 4 — How It Works:** Algorithm explanation, V10 vs V14 comparison table, code breakdown.
+// Set a default seed for all images on the page
+PixelShield.defaultSeed = 12345678;
 
-### Quick start (add to your own website)
-
-```html
-<!-- 1. Use the encrypted PNG as your image src -->
-<img src="encrypted-photo.png"
-     data-pixel-shield
-     data-seed="YOUR_SECRET_SEED_NUMBER"
-     alt="My artwork">
-
-<!-- 2. Add once per page, before </body> -->
-<script src="pixel-shield.js"></script>
+// Low-level pixel array access
+const encrypted = PixelShield.algorithm.encrypt(uint8ClampedArray, seed);
+const decrypted = PixelShield.algorithm.decrypt(uint8ClampedArray, seed);
 ```
 
-That's it. Visitors see the original image. Scrapers download noise.
-
----
-
-## Formula Status
-
-V14 passes all quality benchmarks:
-
-| Test | Result |
-|------|--------|
-| Round-trip errors (all pixel values 0–255) | ✅ 0 errors |
-| PSNR (image quality after decrypt) | ✅ ∞ dB (mathematically perfect) |
-| Encrypted image entropy | ✅ 7.999 / 8.0 bits (near-maximum) |
-| Spatial scrambling factor | ✅ 85× neighbour difference |
-| Wrong-seed false positives | ✅ 0.3% (matches chance) |
-| Alpha channel integrity | ✅ Always 255 |
-
-Previous bugs from V10 (black dots, dark regions, division-by-zero skips, floating-point clamping) are all fixed in V14 by switching to XOR-based encryption.
-
----
-
-## Why Not Just Use Existing Tools?
-
-| Approach | What It Does | Why It Fails |
-|---|---|---|
-| `robots.txt` | Tells crawlers not to index | Crawlers freely ignore it |
-| Visible watermark | Marks ownership | Easy to crop or inpaint |
-| Metadata / IPTC | Embeds author info | Stripped on re-save |
-| **Glaze / Nightshade** | Adversarial perturbation confuses AI training | One-directional, permanent — no reversibility |
-| **This project** | Pixel encryption reversible only in browser | Hard technical barrier; scraper gets noise |
-
-Glaze and Nightshade (University of Chicago SAND Lab) are the closest prior art. The key difference: those tools create permanent corruption aimed at confusing AI at the feature level. We need **full reversibility** — the decrypted image must be identical (or near-identical) to the original. That requires a deterministic invertible cipher, not a gradient-based perturbation.
+Full API reference: [`docs/api.md`](docs/api.md)
 
 ---
 
 ## Limitations
 
-### Social Media
+| Limitation | Detail |
+|-----------|--------|
+| **Social media** | Doesn't protect images uploaded to Instagram, X, TikTok — those platforms re-host on their own CDN and never run your JS |
+| **Headless browsers** | A sophisticated scraper running full headless Chrome would execute the script. Mitigation: obfuscate `pixel-shield.js` and serve the seed from a backend |
+| **CORS** | Encrypted image must be same-origin OR served with `Access-Control-Allow-Origin: *` |
+| **JPEG re-saves** | Lossy compression breaks pixel-perfect encryption — always use PNG |
+| **No server required** | Encryption is 100% client-side. Keep seeds out of public repos for maximum security |
 
-This system **does not work on social media platforms** (Instagram, X/Twitter, TikTok, etc.).
-
-When you upload an image to a social media platform, the platform **re-hosts the file on its own servers** and serves it directly from its own CDN. It does not embed your image in an `<iframe>` or run your JavaScript. The encrypted file would be served as-is — and the platform's own systems would render the scrambled noise, not your original image.
-
-This system is designed for **platforms that the owner controls** — image hosting services, personal portfolio sites, stock photo platforms — where the page's JavaScript can be guaranteed to run before the image is displayed.
-
-### Statistical Analysis
-
-A sufficiently sophisticated adversary could potentially detect that encrypted images follow a non-random pattern and attempt to reverse the formula statistically. Version 10's use of position-dependent keys (`i / data[i]`) makes this significantly harder than a fixed-offset cipher, but it has not been formally analysed. This is a future research direction.
+Full threat model: [`docs/security.md`](docs/security.md)
 
 ---
 
-## Roadmap
+## Comparison with Existing Approaches
 
-| Phase | Goal | Status |
-|---|---|---|
-| **1 — Proof of Concept** | Working encrypt/decrypt in browser | ✅ Complete |
-| **2 — Standalone Encrypted Export** | Save encrypted PNG that decrypts on page load | 🔄 In Progress |
-| **3 — Image Hosting Platform** | Shutterstock-style upload → embed system | 📋 Planned |
-| **4 — Hardening** | Formal reversibility analysis, reduce artefacts | 📋 Planned |
-| **5 — Public Release** | Open-source library + hosted platform | 📋 Planned |
+| Approach | What it does | Why it's not enough |
+|----------|-------------|---------------------|
+| `robots.txt` | Asks crawlers not to index | Freely ignored |
+| Visible watermark | Marks ownership | Easy to crop or inpaint |
+| Metadata / IPTC | Embeds author info | Stripped on re-save |
+| Glaze / Nightshade | Adversarial perturbation confuses AI training | Permanent — no reversibility for the viewer |
+| **PixelShield** | Pixel encryption reversible only in browser | Hard technical barrier; scraper gets noise |
+
+---
+
+## Project History
+
+This project started as an R&D question: *can we store an image as meaningless noise on a server, while a browser silently reconstructs it perfectly for a human viewer?*
+
+The answer, after iterating through 14 formula versions, is **yes**.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full version history.
 
 ---
 
 ## Authors
 
-**Hudson Horwood** and **Graham Barclay**  
-Supervised by Ms. Poon  
+**Hudson Horwood** and **Graham Barclay**
+Supervised by Ms. Poon
 Grades 2–4 R&D Project, 2025–2026
 
 ---
 
-## References
+## Contributing
 
-Key sources from the full paper:
-
-- Birhane, A. et al. "Into the LAIONs Den." *NeurIPS*, 2023. (LAION-5B dataset analysis)
-- Glaze project: [glaze.cs.uchicago.edu](https://glaze.cs.uchicago.edu) — University of Chicago SAND Lab
-- MDN Web Docs: [Canvas API — getImageData()](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData)
-- Common Crawl Foundation: [commoncrawl.org](https://commoncrawl.org)
-
-Full Works Cited (22 sources, MLA 9) is in `docs/paper.pdf`.
-
----
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
-MIT — free to use, modify, and build on. Attribution appreciated.
+[MIT](LICENSE) — free to use, modify, and build on. Attribution appreciated.
