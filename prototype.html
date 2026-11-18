@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Encryption — Anti-AI Scraper Prototype</title>
+<style>
+  :root {
+    --navy: #1a2744;
+    --navy-light: #243260;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --green: #2e7d52;
+    --green-light: #3da368;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #dde0e8;
+    --text: #1a2744;
+    --text-muted: #6b7280;
+    --code-bg: #1e2535;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.03em; }
+  header p  { font-size: 0.75rem; color: #9ba8c0; margin-top: 2px; }
+  .badge {
+    background: var(--gold);
+    color: var(--navy);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main { max-width: 1300px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ── UPLOAD ZONE ── */
+  #drop-zone {
+    border: 2px dashed var(--gold);
+    border-radius: 12px;
+    background: white;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 24px;
+  }
+  #drop-zone.dragover { background: #fffbf0; border-color: var(--gold-light); }
+  #drop-zone.has-image { border-style: solid; border-color: var(--green); background: #f0faf5; }
+  #drop-zone svg { margin-bottom: 12px; opacity: 0.5; }
+  #drop-zone p { color: var(--text-muted); font-size: 0.9rem; }
+  #drop-zone strong { color: var(--text); }
+  #file-input { display: none; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-encrypt  { background: var(--navy); color: white; }
+  .btn-encrypt:hover:not(:disabled)  { background: var(--navy-light); }
+  .btn-decrypt  { background: var(--green); color: white; }
+  .btn-decrypt:hover:not(:disabled)  { background: var(--green-light); }
+  .btn-reset    { background: white; color: var(--text); border: 1.5px solid var(--border); }
+  .btn-reset:hover:not(:disabled)    { background: var(--bg); }
+
+  /* ── PROGRESS ── */
+  #progress-wrap {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    display: none;
+  }
+  #progress-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+  #progress-bar-bg {
+    background: var(--bg);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--navy), var(--gold));
+    border-radius: 20px;
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  /* ── STATS ── */
+  #stats-bar {
+    display: none;
+    gap: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .stat {
+    flex: 1;
+    padding: 12px 16px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-top: 2px; }
+
+  /* ── CANVAS GRID ── */
+  .canvas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) { .canvas-grid { grid-template-columns: 1fr; } }
+  .canvas-panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .canvas-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .canvas-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-navy  { background: var(--navy); }
+  .dot-gold  { background: var(--gold); }
+  .dot-green { background: var(--green); }
+  .canvas-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .canvas-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: #f9fafb;
+    padding: 8px;
+    position: relative;
+  }
+  canvas {
+    max-width: 100%;
+    max-height: 320px;
+    display: none;
+    border-radius: 4px;
+  }
+  .canvas-placeholder {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 20px;
+  }
+  .canvas-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+  }
+  .btn-download {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .btn-download:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+  .btn-download:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── FORMULA PANEL ── */
+  .formula-panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .formula-header {
+    padding: 12px 18px;
+    background: var(--code-bg);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  pre {
+    background: var(--code-bg);
+    color: #c9d1e0;
+    padding: 20px 24px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.65;
+    overflow-x: auto;
+  }
+  .c-comment { color: #6b7a99; }
+  .c-key     { color: var(--gold-light); }
+  .c-num     { color: #7ec8a0; }
+  .c-op      { color: #e07070; }
+
+  /* ── NOTE BOX ── */
+  .note {
+    background: #fff8e6;
+    border-left: 4px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    color: #6b5000;
+    margin-bottom: 24px;
+  }
+  .note strong { color: #4a3800; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Pixel Encryption — Anti-AI Scraper Defense</h1>
+    <p>Hudson Horwood &amp; Graham Barclay · R&amp;D Prototype · 2025–2026</p>
+  </div>
+  <span class="badge">Prototype v10</span>
+</header>
+
+<main>
+
+  <!-- Drop zone -->
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a2744" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <path d="M21 15l-5-5L5 21"/>
+    </svg>
+    <p><strong>Drag and drop an image here</strong></p>
+    <p style="margin-top:4px">or click to browse · PNG, JPG, WebP supported</p>
+    <input type="file" id="file-input" accept="image/*">
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn-encrypt" id="btn-encrypt" disabled onclick="runEncrypt()">
+      🔒 Encrypt
+    </button>
+    <button class="btn btn-decrypt" id="btn-decrypt" disabled onclick="runDecrypt()">
+      🔓 Decrypt
+    </button>
+    <button class="btn btn-reset" id="btn-reset" disabled onclick="resetAll()">
+      ↺ Reset
+    </button>
+    <span id="status-msg" style="font-size:0.82rem;color:var(--text-muted);margin-left:4px;"></span>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-wrap">
+    <div id="progress-label">Loading…</div>
+    <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-bar" style="display:none; flex-wrap:wrap;">
+    <div class="stat">
+      <div class="stat-label">Dimensions</div>
+      <div class="stat-value" id="stat-dims">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total Pixels</div>
+      <div class="stat-value" id="stat-pixels">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Encrypt Time</div>
+      <div class="stat-value" id="stat-enc-time">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Decrypt Time</div>
+      <div class="stat-value" id="stat-dec-time">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Zero-Pixel Errors</div>
+      <div class="stat-value" id="stat-errors">—</div>
+    </div>
+  </div>
+
+  <!-- Canvas grid -->
+  <div class="canvas-grid">
+
+    <!-- Original -->
+    <div class="canvas-panel">
+      <div class="canvas-header">
+        <div>
+          <div class="canvas-title"><span class="dot dot-navy"></span> Original</div>
+          <div class="canvas-desc">What the human uploaded</div>
+        </div>
+      </div>
+      <div class="canvas-body">
+        <canvas id="canvas-original"></canvas>
+        <div class="canvas-placeholder" id="ph-original">Upload an image to begin</div>
+      </div>
+      <div class="canvas-footer">
+        <button class="btn-download" id="dl-original" disabled onclick="downloadCanvas('canvas-original','original.png')">
+          ⬇ Download original
+        </button>
+      </div>
+    </div>
+
+    <!-- Encrypted -->
+    <div class="canvas-panel">
+      <div class="canvas-header">
+        <div>
+          <div class="canvas-title"><span class="dot dot-gold"></span> Encrypted</div>
+          <div class="canvas-desc">What the AI scraper downloads</div>
+        </div>
+      </div>
+      <div class="canvas-body">
+        <canvas id="canvas-encrypted"></canvas>
+        <div class="canvas-placeholder" id="ph-encrypted">Run Encrypt to see this</div>
+      </div>
+      <div class="canvas-footer">
+        <button class="btn-download" id="dl-encrypted" disabled onclick="downloadCanvas('canvas-encrypted','encrypted.png')">
+          ⬇ Download encrypted
+        </button>
+      </div>
+    </div>
+
+    <!-- Decrypted -->
+    <div class="canvas-panel">
+      <div class="canvas-header">
+        <div>
+          <div class="canvas-title"><span class="dot dot-green"></span> Decrypted</div>
+          <div class="canvas-desc">What the browser shows the human</div>
+        </div>
+      </div>
+      <div class="canvas-body">
+        <canvas id="canvas-decrypted"></canvas>
+        <div class="canvas-placeholder" id="ph-decrypted">Run Decrypt to see this</div>
+      </div>
+      <div class="canvas-footer">
+        <button class="btn-download" id="dl-decrypted" disabled onclick="downloadCanvas('canvas-decrypted','decrypted.png')">
+          ⬇ Download decrypted
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Note -->
+  <div class="note">
+    <strong>What you're seeing:</strong> The <em>Encrypted</em> version is what gets stored on the server and what any AI scraper downloads — meaningless noise. The <em>Decrypted</em> version is what a real browser recreates on-the-fly, invisible to the user. Some black dots and colour artefacts in the decrypted image are known bugs from division-by-zero and channel clamping. See Section 10 of the paper.
+  </div>
+
+  <!-- Formula -->
+  <div class="formula-panel">
+    <div class="formula-header">
+      <span>⚙</span> Version 10 Encryption Formula (JavaScript)
+    </div>
+    <pre><span class="c-comment">// ── ENCRYPTION (run once on upload) ──────────────────────────────────</span>
+<span class="c-comment">// For each pixel group starting at index i (step of 4: R,G,B,A)</span>
+
+<span class="c-key">let</span> r   = data[i];     <span class="c-comment">// original red value</span>
+<span class="c-key">if</span> (r === <span class="c-num">0</span>) { errors++; <span class="c-key">continue</span>; }  <span class="c-comment">// guard: avoid divide-by-zero</span>
+
+<span class="c-key">let</span> mdr = data[i] / (i / data[i] % <span class="c-num">255</span>);  <span class="c-comment">// MoDula Red — unique key per pixel</span>
+
+data[i<span class="c-op">+</span><span class="c-num">1</span>] <span class="c-op">=</span> (data[i] / data[i<span class="c-op">+</span><span class="c-num">1</span>]) <span class="c-op">*</span> <span class="c-num">10</span>;         <span class="c-comment">// green → ratio keyed to red</span>
+data[i]   <span class="c-op">=</span> (i / data[i]) % <span class="c-num">255</span>;               <span class="c-comment">// red   → position scramble</span>
+data[i<span class="c-op">+</span><span class="c-num">2</span>] <span class="c-op">=</span> (data[i<span class="c-op">+</span><span class="c-num">2</span>] / mdr) <span class="c-op">*</span> <span class="c-num">0.4</span>;           <span class="c-comment">// blue  → scaled by mdr</span>
+data[i<span class="c-op">+</span><span class="c-num">3</span>] <span class="c-op">=</span> <span class="c-num">255</span> <span class="c-op">-</span> (mdr <span class="c-op">*</span> <span class="c-num">10</span>);                 <span class="c-comment">// alpha → stores mdr as hidden key</span>
+
+<span class="c-comment">// ── DECRYPTION (run in browser on page load) ──────────────────────────</span>
+
+<span class="c-key">let</span> dmr  <span class="c-op">=</span> (<span class="c-num">255</span> <span class="c-op">-</span> data[i<span class="c-op">+</span><span class="c-num">3</span>]) / <span class="c-num">10</span>;          <span class="c-comment">// recover mdr from alpha channel</span>
+data[i]   <span class="c-op">=</span> data[i] <span class="c-op">*</span> dmr;                  <span class="c-comment">// restore red</span>
+data[i<span class="c-op">+</span><span class="c-num">2</span>] <span class="c-op">=</span> data[i<span class="c-op">+</span><span class="c-num">2</span>] <span class="c-op">*</span> dmr <span class="c-op">*</span> <span class="c-num">2.5</span>;          <span class="c-comment">// restore blue</span>
+data[i<span class="c-op">+</span><span class="c-num">1</span>] <span class="c-op">=</span> data[i] / (data[i<span class="c-op">+</span><span class="c-num">1</span>] <span class="c-op">*</span> <span class="c-num">0.1</span>);   <span class="c-comment">// restore green</span>
+data[i<span class="c-op">+</span><span class="c-num">3</span>] <span class="c-op">=</span> <span class="c-num">255</span>;                           <span class="c-comment">// restore full opacity</span></pre>
+  </div>
+
+</main>
+
+<footer>
+  Prototype — Hudson Horwood &amp; Graham Barclay · R&amp;D Project 2025–2026 ·
+  Known bugs: division-by-zero (red=0 pixels skipped), channel clamping artefacts, single-pass encrypt/decrypt. See paper Section 10.
+</footer>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let originalImageData = null;   // ImageData from original upload
+let encryptedImageData = null;  // ImageData after encryption
+let imgW = 0, imgH = 0;
+
+// ── UPLOAD ─────────────────────────────────────────────────────────────────
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadFile(file);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      imgW = img.width;
+      imgH = img.height;
+
+      // Draw to original canvas
+      const c = document.getElementById('canvas-original');
+      c.width = imgW; c.height = imgH;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      originalImageData = ctx.getImageData(0, 0, imgW, imgH);
+
+      showCanvas('canvas-original', 'ph-original');
+      document.getElementById('dl-original').disabled = false;
+
+      // Clear encrypted/decrypted
+      hideCanvas('canvas-encrypted', 'ph-encrypted', 'Run Encrypt to see this');
+      hideCanvas('canvas-decrypted', 'ph-decrypted', 'Run Decrypt to see this');
+      document.getElementById('dl-encrypted').disabled = true;
+      document.getElementById('dl-decrypted').disabled = true;
+      encryptedImageData = null;
+
+      // Update UI
+      dropZone.classList.add('has-image');
+      setStatus('Image loaded — ' + imgW + '×' + imgH);
+      document.getElementById('btn-encrypt').disabled = false;
+      document.getElementById('btn-decrypt').disabled = true;
+      document.getElementById('btn-reset').disabled   = false;
+
+      // Stats
+      document.getElementById('stat-dims').textContent   = imgW + '×' + imgH;
+      document.getElementById('stat-pixels').textContent = (imgW * imgH).toLocaleString();
+      document.getElementById('stat-enc-time').textContent = '—';
+      document.getElementById('stat-dec-time').textContent = '—';
+      document.getElementById('stat-errors').textContent   = '—';
+      document.getElementById('stats-bar').style.display   = 'flex';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── ENCRYPT ────────────────────────────────────────────────────────────────
+function runEncrypt() {
+  if (!originalImageData) return;
+
+  setProgress('Encrypting pixels…', 0);
+
+  // Use setTimeout so progress bar renders before heavy loop
+  setTimeout(() => {
+    const src  = new ImageData(
+      new Uint8ClampedArray(originalImageData.data),
+      imgW, imgH
+    );
+    const data = src.data;
+    let errors = 0;
+    const t0 = performance.now();
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      if (r === 0) { errors++; continue; }
+
+      const mdr = data[i] / (i / data[i] % 255);
+      data[i+1] = (data[i] / data[i+1]) * 10;
+      data[i]   = (i / data[i]) % 255;
+      data[i+2] = (data[i+2] / mdr) * 0.4;
+      data[i+3] = 255 - (mdr * 10);
+
+      // Update progress every ~50k pixels
+      if (i % 200000 === 0) setProgressBar(i / data.length * 100);
+    }
+
+    const t1 = performance.now();
+    encryptedImageData = src;
+
+    // Draw to encrypted canvas
+    const c   = document.getElementById('canvas-encrypted');
+    c.width = imgW; c.height = imgH;
+    const ctx = c.getContext('2d');
+    ctx.putImageData(encryptedImageData, 0, 0);
+    showCanvas('canvas-encrypted', 'ph-encrypted');
+    document.getElementById('dl-encrypted').disabled = false;
+
+    // Update stats
+    document.getElementById('stat-enc-time').textContent = Math.round(t1 - t0) + ' ms';
+    document.getElementById('stat-errors').textContent   = errors.toLocaleString();
+
+    document.getElementById('btn-decrypt').disabled = false;
+    setStatus('Encrypted in ' + Math.round(t1 - t0) + ' ms · ' + errors + ' zero-pixel errors skipped');
+    hideProgress();
+  }, 30);
+}
+
+// ── DECRYPT ────────────────────────────────────────────────────────────────
+function runDecrypt() {
+  if (!encryptedImageData) return;
+
+  setProgress('Decrypting pixels…', 0);
+
+  setTimeout(() => {
+    const src  = new ImageData(
+      new Uint8ClampedArray(encryptedImageData.data),
+      imgW, imgH
+    );
+    const data = src.data;
+    const t0   = performance.now();
+
+    for (let i = 0; i < data.length; i += 4) {
+      const dmr = (255 - data[i+3]) / 10;
+      data[i]   = data[i]   * dmr;
+      data[i+2] = data[i+2] * dmr * 2.5;
+      data[i+1] = data[i]   / (data[i+1] * 0.1);
+      data[i+3] = 255;
+
+      if (i % 200000 === 0) setProgressBar(i / data.length * 100);
+    }
+
+    const t1 = performance.now();
+
+    // Draw to decrypted canvas
+    const c   = document.getElementById('canvas-decrypted');
+    c.width = imgW; c.height = imgH;
+    const ctx = c.getContext('2d');
+    ctx.putImageData(src, 0, 0);
+    showCanvas('canvas-decrypted', 'ph-decrypted');
+    document.getElementById('dl-decrypted').disabled = false;
+
+    document.getElementById('stat-dec-time').textContent = Math.round(t1 - t0) + ' ms';
+    setStatus('Decrypted in ' + Math.round(t1 - t0) + ' ms · compare Original vs Decrypted for artefacts');
+    hideProgress();
+  }, 30);
+}
+
+// ── RESET ──────────────────────────────────────────────────────────────────
+function resetAll() {
+  originalImageData = null;
+  encryptedImageData = null;
+  imgW = 0; imgH = 0;
+  hideCanvas('canvas-original',  'ph-original',  'Upload an image to begin');
+  hideCanvas('canvas-encrypted', 'ph-encrypted', 'Run Encrypt to see this');
+  hideCanvas('canvas-decrypted', 'ph-decrypted', 'Run Decrypt to see this');
+  document.getElementById('dl-original').disabled  = true;
+  document.getElementById('dl-encrypted').disabled = true;
+  document.getElementById('dl-decrypted').disabled = true;
+  document.getElementById('btn-encrypt').disabled  = true;
+  document.getElementById('btn-decrypt').disabled  = true;
+  document.getElementById('btn-reset').disabled    = true;
+  document.getElementById('stats-bar').style.display = 'none';
+  dropZone.classList.remove('has-image');
+  fileInput.value = '';
+  hideProgress();
+  setStatus('');
+}
+
+// ── DOWNLOAD ───────────────────────────────────────────────────────────────
+function downloadCanvas(id, filename) {
+  const c = document.getElementById(id);
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = c.toDataURL('image/png');
+  a.click();
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function showCanvas(canvasId, placeholderId) {
+  document.getElementById(canvasId).style.display = 'block';
+  document.getElementById(placeholderId).style.display = 'none';
+}
+function hideCanvas(canvasId, placeholderId, msg) {
+  document.getElementById(canvasId).style.display = 'none';
+  const ph = document.getElementById(placeholderId);
+  ph.style.display = 'block';
+  if (msg) ph.textContent = msg;
+}
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+function setProgress(label, pct) {
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('progress-label').textContent  = label;
+  setProgressBar(pct);
+}
+function setProgressBar(pct) {
+  document.getElementById('progress-bar').style.width = Math.min(100, pct) + '%';
+}
+function hideProgress() {
+  setProgressBar(100);
+  setTimeout(() => {
+    document.getElementById('progress-wrap').style.display = 'none';
+    setProgressBar(0);
+  }, 400);
+}
+</script>
+</body>
+</html>

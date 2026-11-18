@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelShield — Anti-AI Image Encryption</title>
+<style>
+  /* ── Tokens ── */
+  :root {
+    --navy: #1a2744;
+    --navy-mid: #243459;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --green: #2e7d52;
+    --green-light: #3ea86e;
+    --red: #c0392b;
+    --bg: #0e1628;
+    --bg2: #162035;
+    --bg3: #1e2d4a;
+    --border: #2c3f6a;
+    --text: #e8eaf0;
+    --text-muted: #8a9bbf;
+    --mono: 'Courier New', Courier, monospace;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, var(--navy) 0%, #0e1628 100%);
+    border-bottom: 2px solid var(--gold);
+    padding: 32px 0 28px;
+    text-align: center;
+  }
+  header .badge {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--navy);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  header h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: #fff;
+  }
+  header h1 span { color: var(--gold); }
+  header p {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 1.05rem;
+  }
+
+  /* ── Section headers ── */
+  .section {
+    margin: 40px 0;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .section p {
+    color: var(--text-muted);
+    max-width: 680px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .card + .card { margin-top: 16px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px 6px 0 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    transition: all .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    background: var(--navy-mid);
+    border-color: var(--gold);
+    border-bottom-color: var(--navy-mid);
+    color: var(--gold);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Three-panel display ── */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  @media (max-width: 700px) {
+    .panels { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--navy);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .panel-header .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .panel-body {
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    position: relative;
+  }
+  .panel-body canvas,
+  .panel-body img {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 4px;
+    display: block;
+  }
+  .panel-placeholder {
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 12px 16px;
+    background: var(--navy);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .stat { display: flex; align-items: center; gap: 6px; }
+  .stat-label { color: var(--text-muted); }
+  .stat-value { font-weight: 700; font-family: var(--mono); }
+  .stat-value.ok { color: var(--green-light); }
+  .stat-value.warn { color: var(--gold); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--navy-mid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    text-decoration: none;
+    transition: all .15s;
+  }
+  .btn:hover { background: var(--bg3); border-color: var(--gold); color: var(--gold); }
+  .btn.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--navy);
+  }
+  .btn.primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
+  .btn.green {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+  .btn.green:hover { background: var(--green-light); border-color: var(--green-light); }
+  .btn:disabled { opacity: .4; pointer-events: none; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    color: var(--text-muted);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--gold);
+    background: rgba(201,168,76,.05);
+    color: var(--text);
+  }
+  .upload-zone input { display: none; }
+  .upload-zone .icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .upload-zone p { font-size: 14px; }
+  .upload-zone small { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Code block ── */
+  pre {
+    background: #0a0f1e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-size: 13px;
+    font-family: var(--mono);
+    line-height: 1.65;
+    color: #c8d3f5;
+    white-space: pre;
+  }
+  code { font-family: var(--mono); }
+  .kw  { color: #89ddff; }
+  .str { color: #c3e88d; }
+  .cmt { color: #546e7a; font-style: italic; }
+  .num { color: #f78c6c; }
+
+  /* ── Seed input ── */
+  .seed-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+  }
+  .seed-row label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .seed-row input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 7px 12px;
+    width: 200px;
+  }
+  .seed-row input:focus { outline: none; border-color: var(--gold); }
+  .seed-hint { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    margin: 10px 0;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--green-light));
+    border-radius: 2px;
+    transition: width .3s;
+  }
+
+  /* ── Embed snippet ── */
+  .embed-snippet {
+    background: #0a0f1e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: #c8d3f5;
+    overflow-x: auto;
+    white-space: pre;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--navy-mid);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 4px 10px;
+    transition: all .15s;
+  }
+  .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ── Live demo section ── */
+  .live-demo-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+    margin: 20px 0;
+  }
+  @media (max-width: 700px) {
+    .live-demo-container { grid-template-columns: 1fr; }
+  }
+  .demo-image-wrap {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .demo-image-wrap img, .demo-image-wrap canvas {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 4px;
+  }
+  .demo-image-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .demo-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .demo-badge.scraper { background: rgba(192,57,43,.2); color: #e74c3c; border: 1px solid rgba(192,57,43,.4); }
+  .demo-badge.human   { background: rgba(46,125,82,.2); color: #3ea86e; border: 1px solid rgba(46,125,82,.4); }
+
+  /* ── How-it-works steps ── */
+  .steps { display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--gold);
+    color: var(--navy);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 14px; color: var(--text-muted); padding-top: 3px; }
+  .step-text strong { color: var(--text); }
+
+  /* ── Info table ── */
+  .info-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .info-table th {
+    background: var(--navy);
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .info-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .info-table tr:last-child td { border-bottom: none; }
+  .info-table tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── Status messages ── */
+  .status-msg {
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    display: none;
+  }
+  .status-msg.ok   { background: rgba(46,125,82,.15); border: 1px solid var(--green); color: var(--green-light); }
+  .status-msg.warn { background: rgba(201,168,76,.15); border: 1px solid var(--gold); color: var(--gold-light); }
+  .status-msg.show { display: block; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    margin-top: 60px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="page-wrap">
+    <div class="badge">R&amp;D Prototype · 2025–2026</div>
+    <h1>Pixel<span>Shield</span></h1>
+    <p>Pixel-level image encryption that defeats AI scrapers — invisible to humans, unusable by bots.</p>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+  <!-- ── Tab bar ── -->
+  <div class="tabs" style="margin-top: 32px;">
+    <button class="tab-btn active" onclick="switchTab('demo')">▶ Live Demo</button>
+    <button class="tab-btn" onclick="switchTab('creator')">🔒 Encrypt Your Image</button>
+    <button class="tab-btn" onclick="switchTab('decrypt')">🔓 Decrypt an Image</button>
+    <button class="tab-btn" onclick="switchTab('embed')">⟨/⟩ Add to Website</button>
+    <button class="tab-btn" onclick="switchTab('how')">❓ How It Works</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TAB 1 — LIVE DEMO
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-demo" class="tab-panel active">
+    <div class="section">
+      <div class="section-label">Interactive Demo</div>
+      <h2>See it in action</h2>
+      <p>Upload any image and watch it get encrypted (what a scraper downloads) and then perfectly recovered (what your visitor sees).</p>
+    </div>
+
+    <div class="card">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/*" onchange="handleUpload(this)">
+        <div class="icon">🖼️</div>
+        <p><strong>Drop an image here</strong> or click to upload</p>
+        <small>PNG, JPG, GIF, WebP — any size</small>
+      </div>
+
+      <div class="seed-row" style="margin-top: 16px;">
+        <label for="demoSeedInput">Encryption seed:</label>
+        <input type="number" id="demoSeedInput" value="3735928559" min="1" max="4294967295">
+        <span class="seed-hint">Any number 1 – 4,294,967,295. This is your secret key.</span>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+      </div>
+
+      <div class="panels" id="panels">
+        <div class="panel">
+          <div class="panel-header">
+            <span><span class="dot" style="background:#3498db"></span>Original</span>
+          </div>
+          <div class="panel-body" id="panelOrig">
+            <div class="panel-placeholder">Upload an image to begin</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span><span class="dot" style="background:#e74c3c"></span>Encrypted</span>
+            <span style="font-size:10px; color: var(--text-muted)">What AI scrapers download</span>
+          </div>
+          <div class="panel-body" id="panelEnc">
+            <div class="panel-placeholder">—</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span><span class="dot" style="background:var(--green)"></span>Decrypted</span>
+            <span style="font-size:10px; color: var(--text-muted)">What your visitor sees</span>
+          </div>
+          <div class="panel-body" id="panelDec">
+            <div class="panel-placeholder">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-bar" id="statsBar" style="display:none; border-radius: 0 0 8px 8px;">
+        <div class="stat">
+          <span class="stat-label">Size</span>
+          <span class="stat-value" id="statSize">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Pixels</span>
+          <span class="stat-value" id="statPx">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Encrypt time</span>
+          <span class="stat-value" id="statEncTime">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Decrypt time</span>
+          <span class="stat-value" id="statDecTime">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Round-trip errors</span>
+          <span class="stat-value ok" id="statErrors">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">AI disruption</span>
+          <span class="stat-value warn" id="statDisruption">—</span>
+        </div>
+      </div>
+
+      <div class="btn-row" id="downloadBtns" style="display:none">
+        <button class="btn" onclick="downloadCanvas('encrypted')">⬇ Download Encrypted PNG</button>
+        <button class="btn green" onclick="downloadCanvas('decrypted')">⬇ Download Decrypted PNG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TAB 2 — CREATOR: ENCRYPT YOUR IMAGE
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-creator" class="tab-panel">
+    <div class="section">
+      <div class="section-label">Creator Workflow</div>
+      <h2>Encrypt your image for upload</h2>
+      <p>Upload a photo, choose a seed number, and download the encrypted PNG. Host that encrypted file on your website. Anyone with the right seed and <code>pixel-shield.js</code> can decrypt it — everyone else gets noise.</p>
+    </div>
+
+    <div class="card">
+      <div class="upload-zone" id="creatorUploadZone" onclick="document.getElementById('creatorFileInput').click()">
+        <input type="file" id="creatorFileInput" accept="image/*" onchange="handleCreatorUpload(this)">
+        <div class="icon">📸</div>
+        <p><strong>Upload your image to encrypt</strong></p>
+        <small>The original never leaves your browser — encryption happens locally</small>
+      </div>
+
+      <div class="seed-row" style="margin-top:16px">
+        <label for="creatorSeedInput">Your secret seed:</label>
+        <input type="number" id="creatorSeedInput" value="3735928559" min="1" max="4294967295">
+        <button class="btn" onclick="generateSeed()">🎲 Random</button>
+      </div>
+      <p class="seed-hint" style="margin-top:4px">⚠️ Remember this number — you need it in pixel-shield.js to decrypt.</p>
+
+      <div class="live-demo-container" id="creatorPanels" style="display:none; margin-top:20px">
+        <div class="demo-image-wrap">
+          <div class="demo-image-label">Original</div>
+          <canvas id="creatorOrigCanvas"></canvas>
+          <span class="demo-badge human">👁 Humans see this</span>
+        </div>
+        <div class="demo-image-wrap">
+          <div class="demo-image-label">Encrypted (store this)</div>
+          <canvas id="creatorEncCanvas"></canvas>
+          <span class="demo-badge scraper">🤖 Scrapers download this</span>
+        </div>
+      </div>
+
+      <div id="creatorStatusMsg" class="status-msg"></div>
+
+      <div class="btn-row" id="creatorBtns" style="display:none">
+        <button class="btn primary" id="creatorDownloadBtn" onclick="creatorDownload()">⬇ Download Encrypted PNG</button>
+        <button class="btn" onclick="regenerateCreator()">🔄 Re-encrypt with current seed</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:12px">Your embed snippet</h3>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px">After encrypting, copy this snippet and paste it into any HTML page where you want to show the decrypted image:</p>
+      <div class="embed-snippet" id="creatorSnippet">
+<span class="cmt">&lt;!-- Upload your encrypted PNG and reference it here --&gt;</span>
+<span class="kw">&lt;img</span> <span class="str">src=</span><span class="str">"your-encrypted-photo.png"</span>
+     <span class="str">data-pixel-shield</span>
+     <span class="str">data-seed=</span><span class="num" id="snippetSeed">"3735928559"</span>
+     <span class="str">alt=</span><span class="str">"My protected photo"</span><span class="kw">&gt;</span>
+
+<span class="cmt">&lt;!-- Add once per page, before &lt;/body&gt; --&gt;</span>
+<span class="kw">&lt;script</span> <span class="str">src=</span><span class="str">"pixel-shield.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+      </div>
+      <button class="copy-btn" onclick="copySnippet('creatorSnippet', this)">Copy</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TAB 3 — DECRYPT AN ENCRYPTED IMAGE
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-decrypt" class="tab-panel">
+    <div class="section">
+      <div class="section-label">Decrypt Workflow</div>
+      <h2>Decrypt an encrypted image</h2>
+      <p>Have an encrypted PNG from PixelShield? Upload it here, enter the seed it was encrypted with, and get the original image back.</p>
+    </div>
+
+    <div class="card">
+      <div class="upload-zone" id="decryptUploadZone" onclick="document.getElementById('decryptFileInput').click()">
+        <input type="file" id="decryptFileInput" accept="image/*" onchange="handleDecryptUpload(this)">
+        <div class="icon">🔐</div>
+        <p><strong>Upload your encrypted image</strong></p>
+        <small>Must be a PNG encrypted with PixelShield — wrong seed or wrong file = noise</small>
+      </div>
+
+      <div class="seed-row" style="margin-top:16px">
+        <label for="decryptSeedInput">Encryption seed:</label>
+        <input type="number" id="decryptSeedInput" value="3735928559" min="1" max="4294967295">
+        <span class="seed-hint">Must match the seed used to encrypt this image.</span>
+      </div>
+
+      <div id="decryptStatusMsg" class="status-msg"></div>
+
+      <div class="live-demo-container" id="decryptPanels" style="display:none; margin-top:20px">
+        <div class="demo-image-wrap">
+          <div class="demo-image-label">Encrypted (uploaded)</div>
+          <canvas id="decryptEncCanvas"></canvas>
+          <span class="demo-badge scraper">🤖 Raw file — unusable by AI</span>
+        </div>
+        <div class="demo-image-wrap">
+          <div class="demo-image-label">Decrypted (recovered)</div>
+          <canvas id="decryptDecCanvas"></canvas>
+          <span class="demo-badge human" id="decryptResultBadge">👁 Original image</span>
+        </div>
+      </div>
+
+      <div id="decryptErrorMsg" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(192,57,43,.12); border:1px solid var(--red); border-radius:8px; font-size:13px; color:#e74c3c;">
+        ⚠️ <strong>Wrong seed or file not encrypted with PixelShield</strong> — the decrypted result looks like noise. Check the seed number and try again.
+      </div>
+
+      <div class="btn-row" id="decryptBtns" style="display:none">
+        <button class="btn green" onclick="decryptDownload()">⬇ Download Decrypted PNG</button>
+        <button class="btn" onclick="retryDecrypt()">🔄 Try different seed</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:14px; color:var(--gold); font-weight:700; margin-bottom:12px">How to know if it worked</h3>
+      <table class="info-table">
+        <tr><th>What you see</th><th>What it means</th></tr>
+        <tr>
+          <td>✅ Clear, recognisable image</td>
+          <td>Correct seed — decryption successful</td>
+        </tr>
+        <tr>
+          <td>❌ Still looks like colourful noise</td>
+          <td>Wrong seed — try the number you used when encrypting</td>
+        </tr>
+        <tr>
+          <td>❌ Looks slightly off / wrong colours</td>
+          <td>File may have been re-saved as JPEG (lossy compression breaks pixel-perfect encryption — always use PNG)</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TAB 4 — EMBED: ADD TO YOUR WEBSITE
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-embed" class="tab-panel">
+    <div class="section">
+      <div class="section-label">Website Integration</div>
+      <h2>Add PixelShield to your website</h2>
+      <p>Two files, two steps. Works on any static site, WordPress, Squarespace, Webflow — anywhere you can add HTML and upload files.</p>
+    </div>
+
+    <div class="card">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Upload pixel-shield.js</strong> to your website's root (or any public folder).</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Upload your encrypted image</strong> (the one you made in the "Encrypt Your Image" tab).</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Add two attributes</strong> to your existing <code>&lt;img&gt;</code> tag and include the script once.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <h3 style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:12px">The HTML you need</h3>
+      <div style="position:relative">
+        <pre id="fullEmbedCode"><span class="cmt">&lt;!-- Your protected image --&gt;</span>
+<span class="kw">&lt;img</span>
+  <span class="str">src=</span><span class="str">"encrypted-photo.png"</span>      <span class="cmt">&lt;!-- encrypted file on your server --&gt;</span>
+  <span class="str">data-pixel-shield</span>              <span class="cmt">&lt;!-- marks this image for auto-decrypt --&gt;</span>
+  <span class="str">data-seed=</span><span class="num">"3735928559"</span>         <span class="cmt">&lt;!-- your secret seed number --&gt;</span>
+  <span class="str">alt=</span><span class="str">"My artwork"</span>
+  <span class="str">width=</span><span class="num">"800"</span>
+<span class="kw">&gt;</span>
+
+<span class="cmt">&lt;!-- Add once, just before &lt;/body&gt; --&gt;</span>
+<span class="kw">&lt;script</span> <span class="str">src=</span><span class="str">"pixel-shield.js"</span><span class="kw">&gt;&lt;/script&gt;</span></pre>
+        <button class="copy-btn" onclick="copySnippet('fullEmbedCode', this)">Copy</button>
+      </div>
+
+      <h3 style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:12px; margin-top:24px">Multiple images, one script</h3>
+      <div style="position:relative">
+        <pre id="multiEmbedCode"><span class="cmt">&lt;!-- Each image can have its own seed --&gt;</span>
+<span class="kw">&lt;img</span> <span class="str">src=</span><span class="str">"photo1-encrypted.png"</span> <span class="str">data-pixel-shield</span> <span class="str">data-seed=</span><span class="num">"11111111"</span> <span class="str">alt=</span><span class="str">"Photo 1"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;img</span> <span class="str">src=</span><span class="str">"photo2-encrypted.png"</span> <span class="str">data-pixel-shield</span> <span class="str">data-seed=</span><span class="num">"22222222"</span> <span class="str">alt=</span><span class="str">"Photo 2"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;img</span> <span class="str">src=</span><span class="str">"photo3-encrypted.png"</span> <span class="str">data-pixel-shield</span> <span class="str">data-seed=</span><span class="num">"33333333"</span> <span class="str">alt=</span><span class="str">"Photo 3"</span><span class="kw">&gt;</span>
+
+<span class="cmt">&lt;!-- One script tag handles all of them --&gt;</span>
+<span class="kw">&lt;script</span> <span class="str">src=</span><span class="str">"pixel-shield.js"</span><span class="kw">&gt;&lt;/script&gt;</span></pre>
+        <button class="copy-btn" onclick="copySnippet('multiEmbedCode', this)">Copy</button>
+      </div>
+
+      <h3 style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:12px; margin-top:24px">JavaScript API (advanced)</h3>
+      <pre id="jsApiCode"><span class="cmt">// Encrypt an image and get a Blob for download/upload</span>
+<span class="kw">const</span> blob = <span class="kw">await</span> PixelShield.encrypt(imageElement, <span class="num">12345678</span>);
+
+<span class="cmt">// Decrypt a specific element manually</span>
+<span class="kw">await</span> PixelShield.decryptImage(document.querySelector(<span class="str">'#my-img'</span>), <span class="num">12345678</span>);
+
+<span class="cmt">// Set a default seed for all images on the page</span>
+PixelShield.defaultSeed = <span class="num">12345678</span>;
+
+<span class="cmt">// Or set it on the script tag itself</span>
+<span class="cmt">// &lt;script src="pixel-shield.js" data-default-seed="12345678"&gt;&lt;/script&gt;</span>
+
+<span class="cmt">// Low-level pixel access</span>
+<span class="kw">const</span> encrypted = PixelShield.algorithm.encrypt(imageData.data, seed);
+<span class="kw">const</span> decrypted = PixelShield.algorithm.decrypt(encrypted, seed);</pre>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:12px">Limitations to know</h3>
+      <table class="info-table">
+        <tr>
+          <th>Limitation</th>
+          <th>Details</th>
+        </tr>
+        <tr>
+          <td><strong>Social media</strong></td>
+          <td>Doesn't protect images you upload to Instagram, X/Twitter, TikTok. Those platforms re-host the file on their CDN and never run your JS.</td>
+        </tr>
+        <tr>
+          <td><strong>Headless browsers</strong></td>
+          <td>A sophisticated scraper running a full headless Chrome would execute the script. Mitigation: obfuscate pixel-shield.js and move the seed server-side.</td>
+        </tr>
+        <tr>
+          <td><strong>CORS</strong></td>
+          <td>The encrypted image must be on the same domain OR served with <code>Access-Control-Allow-Origin: *</code>. Same-origin always works.</td>
+        </tr>
+        <tr>
+          <td><strong>No server required</strong></td>
+          <td>Encryption/decryption is 100% client-side. The seed travels in HTML — keep it out of public GitHub repos if you want maximum security.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TAB 4 — HOW IT WORKS
+  ══════════════════════════════════════════════════════════ -->
+  <div id="tab-how" class="tab-panel">
+    <div class="section">
+      <div class="section-label">Technical Details</div>
+      <h2>The encryption algorithm (V14)</h2>
+      <p>Four years of iteration led to a formula that is <strong>mathematically perfect</strong>: 0% error rate, infinite PSNR, and near-maximum entropy in the encrypted output.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:14px; color:var(--gold); font-weight:700; margin-bottom:14px">The gap we exploit</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>AI scrapers don't run JavaScript.</strong> They send an HTTP GET to the image URL and save the bytes.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>We store scrambled pixel data</strong> at the image URL. The raw PNG is unusable noise.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Your visitor's browser runs our script,</strong> silently unscrambles the pixels, and displays the real image.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>The scraper never knows</strong> the image was protected. It just downloads what it thinks is a real image — and trains on noise.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:14px; color:var(--gold); font-weight:700; margin-bottom:14px">The V14 formula</h3>
+<pre><span class="cmt">// PRNG: xorshift32 — deterministic, different key for every pixel</span>
+<span class="kw">function</span> seededPRNG(seed) {
+  <span class="kw">let</span> s = seed >>> <span class="num">0</span>;
+  <span class="kw">return</span> () => {
+    s ^= s &lt;&lt; <span class="num">13</span>;  s ^= s >> <span class="num">17</span>;  s ^= s &lt;&lt; <span class="num">5</span>;
+    <span class="kw">return</span> (s >>> <span class="num">0</span>) &amp; <span class="num">0xFF</span>;
+  };
+}
+
+<span class="cmt">// ENCRYPT — run once, store result on server</span>
+<span class="kw">for</span> (pixel of pixels) {
+  <span class="kw">const</span> kr = rng(), kg = rng(), kb = rng();  rng(); <span class="cmt">// 4 keys per pixel</span>
+  encrypted.R = original.G ^ kr;  <span class="cmt">// swap channels + XOR key</span>
+  encrypted.G = original.B ^ kg;
+  encrypted.B = original.R ^ kb;
+  encrypted.A = <span class="num">255</span>;              <span class="cmt">// always opaque</span>
+}
+
+<span class="cmt">// DECRYPT — run in browser, identical seed = perfect recovery</span>
+<span class="kw">for</span> (pixel of encryptedPixels) {
+  <span class="kw">const</span> kr = rng(), kg = rng(), kb = rng();  rng(); <span class="cmt">// same PRNG sequence</span>
+  decrypted.R = encrypted.B ^ kb;  <span class="cmt">// un-XOR then un-swap</span>
+  decrypted.G = encrypted.R ^ kr;
+  decrypted.B = encrypted.G ^ kg;
+  decrypted.A = <span class="num">255</span>;
+}</pre>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:14px; color:var(--gold); font-weight:700; margin-bottom:14px">Why XOR is perfect</h3>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:12px">The old V10 formula used division chains that lost precision through floating-point rounding. XOR has none of that — it is a bitwise operation with an exact inverse:</p>
+      <pre><span class="cmt">a XOR key = b    →    b XOR key = a   (always, with no precision loss)</span>
+
+<span class="cmt">Channel scrambling adds structural disruption on top:</span>
+<span class="cmt">  R goes to the B slot → pixel colour relationships are destroyed</span>
+<span class="cmt">  G goes to the R slot → spatial patterns unrecognisable to AI</span>
+<span class="cmt">  B goes to the G slot</span></pre>
+
+      <table class="info-table" style="margin-top:16px">
+        <tr>
+          <th>Metric</th>
+          <th>V10 (old)</th>
+          <th>V14 (current)</th>
+        </tr>
+        <tr>
+          <td>Round-trip error rate</td>
+          <td style="color:#e74c3c">54–58%</td>
+          <td style="color:var(--green-light)">0%</td>
+        </tr>
+        <tr>
+          <td>PSNR (image quality)</td>
+          <td style="color:#e74c3c">16–25 dB (unusable)</td>
+          <td style="color:var(--green-light)">∞ (mathematically perfect)</td>
+        </tr>
+        <tr>
+          <td>Encrypted entropy</td>
+          <td style="color:#f39c12">~6 bits</td>
+          <td style="color:var(--green-light)">7.999 bits (near-maximum)</td>
+        </tr>
+        <tr>
+          <td>Spatial scrambling factor</td>
+          <td style="color:#f39c12">~2×</td>
+          <td style="color:var(--green-light)">85×</td>
+        </tr>
+        <tr>
+          <td>Wrong-seed false positive</td>
+          <td>—</td>
+          <td style="color:var(--green-light)">0.3% (matches chance)</td>
+        </tr>
+        <tr>
+          <td>Handles R=0 pixels</td>
+          <td style="color:#e74c3c">No (black dot bug)</td>
+          <td style="color:var(--green-light)">Yes</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <div class="page-wrap">
+    <p>PixelShield · Hudson Horwood &amp; Graham Barclay · Supervised by Ms. Poon · Grades 2–4 R&amp;D Project 2025–2026</p>
+    <p style="margin-top:6px; font-size:12px">V14 algorithm: seeded xorshift32 PRNG + channel scramble · MIT License</p>
+  </div>
+</footer>
+
+<!-- ── Inline pixel-shield.js equivalent (so demo works standalone) ── -->
+<script>
+// Embedded copy of pixel-shield.js so this single file works without a server.
+// In production you'd use: <script src="pixel-shield.js"><\/script>
+
+(function(global) {
+  'use strict';
+  function seededPRNG(seed) {
+    let s = (seed >>> 0) || 1;
+    return function() {
+      s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+      return (s >>> 0) & 0xff;
+    };
+  }
+  function encryptPixels(data, seed) {
+    const d = new Uint8ClampedArray(data);
+    const rng = seededPRNG(seed);
+    for (let i = 0; i < d.length; i += 4) {
+      const kr = rng(), kg = rng(), kb = rng(); rng();
+      const r = data[i], g = data[i+1], b = data[i+2];
+      d[i]   = g ^ kr;
+      d[i+1] = b ^ kg;
+      d[i+2] = r ^ kb;
+      d[i+3] = 255;
+    }
+    return d;
+  }
+  function decryptPixels(data, seed) {
+    const d = new Uint8ClampedArray(data);
+    const rng = seededPRNG(seed);
+    for (let i = 0; i < d.length; i += 4) {
+      const kr = rng(), kg = rng(), kb = rng(); rng();
+      d[i]   = data[i+2] ^ kb;
+      d[i+1] = data[i]   ^ kr;
+      d[i+2] = data[i+1] ^ kg;
+      d[i+3] = 255;
+    }
+    return d;
+  }
+  function pixelsToCanvas(pixelData, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const id = ctx.createImageData(width, height);
+    id.data.set(pixelData);
+    ctx.putImageData(id, 0, 0);
+    return canvas;
+  }
+  global.PixelShield = {
+    version: '1.0.0',
+    algorithm: { encrypt: encryptPixels, decrypt: decryptPixels, prng: seededPRNG },
+    _pixelsToCanvas: pixelsToCanvas,
+  };
+})(window);
+</script>
+
+<script>
+// ── Demo UI logic ────────────────────────────────────────────────────────────
+
+let origImageData = null, encCanvas = null, decCanvas = null;
+let creatorOrigData = null, creatorEncCanvas = null;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Tab 1: Demo ──────────────────────────────────────────────────────────────
+
+function handleUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function() {
+    const W = img.naturalWidth, H = img.naturalHeight;
+    origImageData = { img, W, H, url, name: file.name };
+    runDemo();
+  };
+  img.src = url;
+}
+
+function runDemo() {
+  if (!origImageData) return;
+  const { img, W, H } = origImageData;
+  const seed = parseInt(document.getElementById('demoSeedInput').value, 10) || 0xDEADBEEF;
+
+  // Show progress
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  pw.style.display = 'block'; pb.style.width = '20%';
+
+  // Draw original
+  const origCanvas = document.createElement('canvas');
+  origCanvas.width = W; origCanvas.height = H;
+  const ctx = origCanvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const originalData = ctx.getImageData(0, 0, W, H);
+
+  pb.style.width = '40%';
+
+  // Encrypt
+  const t0 = performance.now();
+  const encData = PixelShield.algorithm.encrypt(originalData.data, seed);
+  const encTime = (performance.now() - t0).toFixed(1);
+
+  pb.style.width = '65%';
+  encCanvas = PixelShield._pixelsToCanvas(encData, W, H);
+
+  // Decrypt
+  const t1 = performance.now();
+  const decData = PixelShield.algorithm.decrypt(encData, seed);
+  const decTime = (performance.now() - t1).toFixed(1);
+
+  pb.style.width = '85%';
+  decCanvas = PixelShield._pixelsToCanvas(decData, W, H);
+
+  // Measure errors
+  let errors = 0;
+  for (let i = 0; i < originalData.data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      if (originalData.data[i+c] !== decData[i+c]) errors++;
+    }
+  }
+
+  // Measure AI disruption
+  let totalDiff = 0;
+  for (let i = 0; i < originalData.data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      totalDiff += Math.abs(originalData.data[i+c] - encData[i+c]);
+    }
+  }
+  const avgDiff = totalDiff / (W * H * 3);
+  const disruption = (avgDiff / 255 * 100).toFixed(1) + '%';
+
+  pb.style.width = '100%';
+
+  // Render panels
+  ['panelOrig','panelEnc','panelDec'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
+  });
+  document.getElementById('panelOrig').appendChild(origCanvas);
+  document.getElementById('panelEnc').appendChild(encCanvas);
+  document.getElementById('panelDec').appendChild(decCanvas);
+
+  // Stats
+  document.getElementById('statSize').textContent = W + '×' + H;
+  document.getElementById('statPx').textContent = (W * H).toLocaleString();
+  document.getElementById('statEncTime').textContent = encTime + 'ms';
+  document.getElementById('statDecTime').textContent = decTime + 'ms';
+  const errEl = document.getElementById('statErrors');
+  errEl.textContent = errors === 0 ? '0 ✓' : errors;
+  errEl.className = 'stat-value ' + (errors === 0 ? 'ok' : 'warn');
+  document.getElementById('statDisruption').textContent = disruption;
+
+  document.getElementById('statsBar').style.display = 'flex';
+  document.getElementById('downloadBtns').style.display = 'flex';
+  pw.style.display = 'none';
+}
+
+function downloadCanvas(which) {
+  const canvas = which === 'encrypted' ? encCanvas : decCanvas;
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = (which === 'encrypted' ? 'encrypted-' : 'decrypted-') + (origImageData?.name || 'image.png');
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Drag and drop
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const img = new Image();
+    img.onload = function() {
+      origImageData = { img, W: img.naturalWidth, H: img.naturalHeight, url: URL.createObjectURL(file), name: file.name };
+      runDemo();
+    };
+    img.src = URL.createObjectURL(file);
+  }
+});
+
+// Re-run on seed change
+document.getElementById('demoSeedInput').addEventListener('change', runDemo);
+
+// ── Tab 2: Creator ───────────────────────────────────────────────────────────
+
+function handleCreatorUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function() {
+    creatorOrigData = { img, W: img.naturalWidth, H: img.naturalHeight };
+    runCreator();
+  };
+  img.src = url;
+}
+
+function runCreator() {
+  if (!creatorOrigData) return;
+  const { img, W, H } = creatorOrigData;
+  const seed = parseInt(document.getElementById('creatorSeedInput').value, 10) || 0xDEADBEEF;
+
+  // Draw original
+  const origC = document.getElementById('creatorOrigCanvas');
+  origC.width = W; origC.height = H;
+  const origCtx = origC.getContext('2d');
+  origCtx.drawImage(img, 0, 0);
+  const origData = origCtx.getImageData(0, 0, W, H);
+
+  // Encrypt
+  const encData = PixelShield.algorithm.encrypt(origData.data, seed);
+  const encC = document.getElementById('creatorEncCanvas');
+  encC.width = W; encC.height = H;
+  const encCtx = encC.getContext('2d');
+  const encImgData = encCtx.createImageData(W, H);
+  encImgData.data.set(encData);
+  encCtx.putImageData(encImgData, 0, 0);
+  creatorEncCanvas = encC;
+
+  document.getElementById('creatorPanels').style.display = 'grid';
+  document.getElementById('creatorBtns').style.display = 'flex';
+
+  const statusEl = document.getElementById('creatorStatusMsg');
+  statusEl.textContent = '✓ Image encrypted with seed ' + seed + '. Download the encrypted PNG and host it on your website.';
+  statusEl.className = 'status-msg ok show';
+
+  updateSnippetSeed(seed);
+}
+
+function regenerateCreator() {
+  runCreator();
+}
+
+function creatorDownload() {
+  if (!creatorEncCanvas) return;
+  const link = document.createElement('a');
+  link.download = 'encrypted-image.png';
+  link.href = creatorEncCanvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function generateSeed() {
+  const seed = Math.floor(Math.random() * 0xFFFFFFFE) + 1;
+  document.getElementById('creatorSeedInput').value = seed;
+  updateSnippetSeed(seed);
+  if (creatorOrigData) runCreator();
+}
+
+function updateSnippetSeed(seed) {
+  document.getElementById('snippetSeed').textContent = '"' + seed + '"';
+}
+
+document.getElementById('creatorSeedInput').addEventListener('change', function() {
+  updateSnippetSeed(parseInt(this.value, 10) || 0xDEADBEEF);
+  if (creatorOrigData) runCreator();
+});
+
+// Creator drag and drop
+const creatorZone = document.getElementById('creatorUploadZone');
+creatorZone.addEventListener('dragover', e => { e.preventDefault(); creatorZone.classList.add('drag-over'); });
+creatorZone.addEventListener('dragleave', () => creatorZone.classList.remove('drag-over'));
+creatorZone.addEventListener('drop', e => {
+  e.preventDefault();
+  creatorZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const img = new Image();
+    img.onload = function() {
+      creatorOrigData = { img, W: img.naturalWidth, H: img.naturalHeight };
+      runCreator();
+    };
+    img.src = URL.createObjectURL(file);
+  }
+});
+
+// ── Tab 3: Decrypt ───────────────────────────────────────────────────────────
+
+let decryptSourceData = null, decryptResultCanvas = null;
+
+function handleDecryptUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function() {
+    // Draw encrypted source onto canvas
+    const encC = document.getElementById('decryptEncCanvas');
+    encC.width = img.naturalWidth; encC.height = img.naturalHeight;
+    const encCtx = encC.getContext('2d');
+    encCtx.drawImage(img, 0, 0);
+    decryptSourceData = { W: img.naturalWidth, H: img.naturalHeight,
+                          pixelData: encCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data };
+    runDecrypt();
+  };
+  img.src = url;
+}
+
+function runDecrypt() {
+  if (!decryptSourceData) return;
+  const seed = parseInt(document.getElementById('decryptSeedInput').value, 10) || 0xDEADBEEF;
+  const { W, H, pixelData } = decryptSourceData;
+
+  // Decrypt
+  const decData = PixelShield.algorithm.decrypt(pixelData, seed);
+
+  // Draw result
+  const decC = document.getElementById('decryptDecCanvas');
+  decC.width = W; decC.height = H;
+  const decCtx = decC.getContext('2d');
+  const id = decCtx.createImageData(W, H);
+  id.data.set(decData);
+  decCtx.putImageData(id, 0, 0);
+  decryptResultCanvas = decC;
+
+  // Heuristic: does the result look like a real image?
+  // A properly decrypted natural image has much lower neighbour-diff than encrypted noise
+  let neighbourDiff = 0, count = 0;
+  for (let x = 0; x < Math.min(W - 1, 200); x++) {
+    for (let y = 0; y < Math.min(H, 200); y++) {
+      const i = (y * W + x) * 4;
+      neighbourDiff += Math.abs(decData[i] - decData[i + 4]);
+      count++;
+    }
+  }
+  const avgDiff = neighbourDiff / count;
+  // Natural images: avg neighbour diff typically < 30. Noise: > 60.
+  const looksReal = avgDiff < 45;
+
+  document.getElementById('decryptPanels').style.display = 'grid';
+  document.getElementById('decryptBtns').style.display = 'flex';
+
+  const statusEl = document.getElementById('decryptStatusMsg');
+  const errorEl  = document.getElementById('decryptErrorMsg');
+  const badge    = document.getElementById('decryptResultBadge');
+
+  if (looksReal) {
+    statusEl.textContent = '✅ Decryption successful with seed ' + seed + '. The image looks correct.';
+    statusEl.className = 'status-msg ok show';
+    errorEl.style.display = 'none';
+    badge.textContent = '👁 Original image';
+    badge.className = 'demo-badge human';
+  } else {
+    statusEl.textContent = '⚠️ Result looks like noise — seed may be wrong. Avg neighbour diff: ' + avgDiff.toFixed(0) + ' (>45 = likely wrong seed).';
+    statusEl.className = 'status-msg warn show';
+    errorEl.style.display = 'block';
+    badge.textContent = '❌ Looks wrong — check seed';
+    badge.className = 'demo-badge scraper';
+  }
+}
+
+function retryDecrypt() {
+  if (decryptSourceData) runDecrypt();
+}
+
+function decryptDownload() {
+  if (!decryptResultCanvas) return;
+  const link = document.createElement('a');
+  link.download = 'decrypted-image.png';
+  link.href = decryptResultCanvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Decrypt tab drag-and-drop
+const decryptZone = document.getElementById('decryptUploadZone');
+decryptZone.addEventListener('dragover', e => { e.preventDefault(); decryptZone.classList.add('drag-over'); });
+decryptZone.addEventListener('dragleave', () => decryptZone.classList.remove('drag-over'));
+decryptZone.addEventListener('drop', e => {
+  e.preventDefault();
+  decryptZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const img = new Image();
+    img.onload = function() {
+      const encC = document.getElementById('decryptEncCanvas');
+      encC.width = img.naturalWidth; encC.height = img.naturalHeight;
+      const encCtx = encC.getContext('2d');
+      encCtx.drawImage(img, 0, 0);
+      decryptSourceData = { W: img.naturalWidth, H: img.naturalHeight,
+                            pixelData: encCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data };
+      runDecrypt();
+    };
+    img.src = URL.createObjectURL(file);
+  }
+});
+
+// Re-run decrypt when seed changes
+document.getElementById('decryptSeedInput').addEventListener('change', retryDecrypt);
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function copySnippet(id, btn) {
+  const el = document.getElementById(id);
+  const text = el.innerText || el.textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = '✓ Copied';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    }).catch(function() {
+      fallbackCopy(text, btn);
+    });
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  btn.textContent = '✓ Copied';
+  setTimeout(() => btn.textContent = 'Copy', 2000);
+}
+</script>
+</body>
+</html>
