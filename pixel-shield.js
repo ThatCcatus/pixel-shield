@@ -17,7 +17,7 @@
  *   swapping the scrambled image with the real one — invisibly,
  *   in under a second.
  *
- * Hudson Horwood & Graham Barclay, 2025-2026 R&D Project
+ * Hudson Horwood, with support from Graham Barclay
  */
 
 (function (global) {

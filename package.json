@@ -1,0 +1,45 @@
+{
+  "name": "pixel-shield",
+  "version": "1.0.0",
+  "description": "Pixel-level client-side image encryption that defeats AI scrapers — invisible to humans, unusable by bots.",
+  "main": "pixel-shield.js",
+  "exports": {
+    ".": "./pixel-shield.js"
+  },
+  "files": [
+    "pixel-shield.js",
+    "README.md",
+    "LICENSE",
+    "docs/"
+  ],
+  "scripts": {
+    "test": "node --test tests/algorithm.test.js",
+    "size": "node -e \"const fs=require('fs');const b=fs.statSync('pixel-shield.js').size;console.log('pixel-shield.js (source):',b,'bytes ('+(b/1024).toFixed(1)+'KB)');console.log('Minified target: <10KB');\""
+  },
+  "keywords": [
+    "image",
+    "encryption",
+    "privacy",
+    "anti-scraping",
+    "ai-protection",
+    "canvas",
+    "pixel",
+    "client-side"
+  ],
+  "author": "Hudson Horwood",
+  "contributors": [
+    "Graham Barclay"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ThatCcatus/pixel-shield.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ThatCcatus/pixel-shield/issues"
+  },
+  "homepage": "https://github.com/ThatCcatus/pixel-shield#readme",
+  "engines": {
+    "node": ">=18"
+  }
+}
