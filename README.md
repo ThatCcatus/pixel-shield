@@ -196,8 +196,6 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full version history.
 ## Author
 
 **Hudson Horwood**, with support from Graham Barclay
-Supervised by Ms. Poon
-Grades 2–4 R&D Project, 2025–2026
 
 ---
 

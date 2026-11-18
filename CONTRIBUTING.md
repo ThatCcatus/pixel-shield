@@ -6,7 +6,7 @@ PixelShield is a student R&D project by Hudson Horwood, with support from Graham
 
 ## Project context
 
-This project is built as part of a Grades 2–4 R&D study (2025–2026) supervised by Ms. Poon. The goal is to understand whether pixel-level client-side encryption can protect images from AI scrapers while remaining perfectly reversible for human viewers.
+This project is built to understand whether pixel-level client-side encryption can protect images from AI scrapers while remaining perfectly reversible for human viewers.
 
 The current state is a working v1.0 proof of concept. Planned next phases are described in the [CHANGELOG roadmap](CHANGELOG.md).
 
